@@ -99,6 +99,7 @@ class AudioDirectoryDataset(Dataset):
         """
         # read the image:
         #audio = self.files[idx]
+        target = self.mem_frame.iloc[idx, 1] - 24
         audio = os.path.join(self.data_dir, self.mem_frame.iloc[idx, 0])
         audio, sr = librosa.core.load(audio)
         audio = librosa.core.resample(audio, sr, self.fps)
@@ -112,7 +113,7 @@ class AudioDirectoryDataset(Dataset):
             audio = torch.nn.functional.pad(audio.view(1, 1, -1), (0, n_pad), mode='replicate').view(1, -1)
         elif audio.shape[-1] > self.fps:
             audio = audio[:, 0:self.fps]
-        return audio, 1
+        return audio, target
 
 
 class Normalize:

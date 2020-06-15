@@ -1,6 +1,6 @@
 import fire
 import os
-from model import WaveGANGenerator, WaveGANDiscriminator
+from model import WaveGANGenerator, WaveGANDiscriminator, PitchClassifier
 import torch
 from torch import nn
 from torch import autograd
@@ -10,6 +10,7 @@ import torch.distributions as dist
 from tqdm import tqdm
 from torch.autograd import Variable
 from torch.utils.tensorboard import SummaryWriter
+from specgrams_helper import SpecgramsHelper
 
 print("Done imports")
 
@@ -43,6 +44,8 @@ class Main(object):
         print("creating models")
         self.generator = WaveGANGenerator()
         self.discriminator = WaveGANDiscriminator()
+        self.pitch_classifier = PitchClassifier()
+
         print("models created")
         if cuda:
             # if torch.cuda.device_count() > 1:
@@ -120,6 +123,47 @@ class Main(object):
         # to be a 1-Lipschitz function.
         gradient_penalty = lmbda * ((gradients.norm(2, dim=1) - 1) ** 2).mean()
         return gradient_penalty
+
+
+    def train_pitch(self, lr=1e-4, betas=(0.5, 0.9), model_save=1):
+        spec_helper = SpecgramsHelper(self.fps*4,  [1025, 512], 0.75, self.fps, 0)
+        optimizer = torch.optim.Adam(self.pitch_classifier.parameters(), lr, betas)
+        dataset = AudioDirectoryDataset(self.data_folder, self.csv_file, fps=self.fps)
+        dataloader = get_data_loader(dataset, batch_size=self.batch_size, num_workers=self.n_cpu)
+        criterion = nn.CrossEntropyLoss()
+
+        if(self.cuda):
+            criterion = criterion.cuda()
+
+        for epoch in range(self.n_epochs):
+            for i, (audio, target) in enumerate(dataloader):
+                if(self.cuda):
+                    audio = audio.cuda()
+                    target = target.cuda()
+
+                audio = Variable(audio.type(self.Tensor), requires_grad=False)
+                audio = spec_helper.waves_to_stfts(audio)
+                print(audio.shape)
+                target = Variable(target)
+                optimizer.zero_grad()
+                output = self.pitch_classifier(audio)
+                loss = criterion(output, target)
+                loss.backward()
+                optimizer.step()
+
+                max_vals, max_indices = torch.max(output, 1)
+                acc = (max_indices == target).sum().item() / max_indices.size()[0]
+
+                n_iter = (epoch + offset) * len(dataloader) + i
+                print(loss.item())
+                print(acc)
+                #self.writer.add_scalar('Train_Loss/loss', loss.item(), n_iter)
+                #self.writer.add_scalar('Train_Acc/acc', acc, n_iter)
+            if (epoch + offset + 1) % model_save == 0:
+                torch.save({
+                    'epoch': epoch + offset + 1,
+                    'state_dict': self.pitch_classifier.state_dict()
+                })
 
     def train(self, g_lr=1e-4, d_lr=1e-4, betas=(0.5, 0.9), n_critic=5, model_save=1):
         optimizer_G = torch.optim.Adam(self.generator.parameters(), g_lr,
