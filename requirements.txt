@@ -1,0 +1,12 @@
+fire
+librosa
+numpy
+lmdb
+pillow
+scipy
+tensorboard
+torch
+torchaudio
+torchvision
+tqdm
+
