@@ -232,6 +232,7 @@ class PitchClassifier(nn.Module):
 
     def forward(self, x):
         #conv1
+        batch_size = x.shape[0]
         x = F.leaky_relu(self.conv1(x))
         if self.verbose:
             print("conv1", x.shape[2], x.shape[3], x.shape[1])
@@ -338,7 +339,7 @@ class PitchClassifier(nn.Module):
         if self.verbose:
             print("conv15", x.shape[2], x.shape[3], x.shape[1])
 
-        x = x.view(2,-1)
+        x = x.view(batch_size,-1)
         x = F.softmax(self.fc1(x))
         if self.verbose:
             print("output", x.shape)

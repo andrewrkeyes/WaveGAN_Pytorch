@@ -72,7 +72,7 @@ class AudioDirectoryDataset(Dataset):
         # return the files list
         return files
 
-    def __init__(self, data_dir, csv_file, transform=None, fps=16000, tf_sess=None):
+    def __init__(self, data_dir, csv_file, transform=None, fps=16000):
         """
         constructor for the class
         :param data_dir: path to the directory containing the data
@@ -85,7 +85,6 @@ class AudioDirectoryDataset(Dataset):
         self.resample = partial(librosa.core.resample, 16000, fps)
         csv_file = os.path.join(data_dir, csv_file)
         self.mem_frame = pd.read_csv(csv_file)
-        self.tf_sess = tf_sess
         self.spectral_params = Dict(
             waveform_length=self.fps*4,
             sample_rate=self.fps,
@@ -126,7 +125,7 @@ class AudioDirectoryDataset(Dataset):
         audio, audio_it = spectral_ops.convert_to_spectrogram(audio, **self.spectral_params)
         audio = tf.stack([audio, audio_it], axis=1)
         audio = tf.reshape(audio, [2, 128, 1024])
-        audio = torch.Tensor(self.tf_sess.run(audio))
+        audio = torch.Tensor(audio.numpy())
         return audio, target
 
 
