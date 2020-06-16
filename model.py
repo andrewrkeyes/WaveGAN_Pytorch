@@ -187,3 +187,160 @@ class WaveGANDiscriminator(nn.Module):
             print(x.shape)
 
         return self.fc1(x)
+
+
+
+class PitchClassifier(nn.Module):
+    def __init__(self):
+        super(PitchClassifier, self).__init__()
+        self.verbose = False
+
+        self.conv1 = nn.Conv2d(2, 32, 1)
+        self.conv2 = nn.Conv2d(32, 32, [3,3], padding=1)
+        self.conv3 = nn.Conv2d(32, 32, [3,3], padding=1)
+        #Downsample
+        self.down1 = nn.Conv2d(32, 32, [2,2], stride=2)
+        self.conv4 = nn.Conv2d(32, 64, 3, padding=1)
+        self.conv5 = nn.Conv2d(64, 64, 3, padding=1)
+        #Downsample
+        self.down2 = nn.Conv2d(64, 64, 2, stride=2)
+        self.conv6 = nn.Conv2d(64, 128, 3, padding=1)
+        self.conv7 = nn.Conv2d(128, 128, 3, padding=1)
+        #Downsample
+        self.down3 = nn.Conv2d(128, 128, 2, stride=2)
+        self.conv8 = nn.Conv2d(128, 256, 3, padding=1)
+        self.conv9 = nn.Conv2d(256, 256, 3, padding=1)
+        #Downsample
+        self.down4 = nn.Conv2d(256, 256, 2, stride=2)
+        self.conv10 = nn.Conv2d(256, 256, 3, padding=1)
+        self.conv11 = nn.Conv2d(256, 256, 3, padding=1)
+        #Downsample
+        self.down5 = nn.Conv2d(256, 256, 2, stride=2)
+        self.conv12 = nn.Conv2d(256, 256, 3, padding=1)
+        self.conv13 = nn.Conv2d(256, 256, 3, padding=1)
+        #Downsample
+        self.down6 = nn.Conv2d(256, 256, 2, stride=2)
+        #concat(x, minibatch std.)
+        self.conv14 = nn.Conv2d(256, 256, 3, padding=1)
+        self.conv15 = nn.Conv2d(256, 256, 3, padding=1)
+
+        self.fc1 = nn.Linear(2*16*256, 61)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+                nn.init.kaiming_normal(m.weight.data)
+
+    def forward(self, x):
+        #conv1
+        x = F.leaky_relu(self.conv1(x))
+        if self.verbose:
+            print("conv1", x.shape[2], x.shape[3], x.shape[1])
+
+        #conv2
+        x = F.leaky_relu(self.conv2(x))
+        if self.verbose:
+            print("conv2", x.shape[2], x.shape[3], x.shape[1])
+
+        #conv3
+        x = F.leaky_relu(self.conv3(x))
+        if self.verbose:
+            print("conv3", x.shape[2], x.shape[3], x.shape[1])
+
+        #down1
+        x = self.down1(x)
+        if self.verbose:
+            print("down1", x.shape[2], x.shape[3], x.shape[1])
+
+        #conv4
+        x = F.leaky_relu(self.conv4(x))
+        if self.verbose:
+            print("conv4", x.shape[2], x.shape[3], x.shape[1])
+
+        #conv5
+        x = F.leaky_relu(self.conv5(x))
+        if self.verbose:
+            print("conv5", x.shape[2], x.shape[3], x.shape[1])
+
+        #down2
+        x = self.down2(x)
+        if self.verbose:
+            print("down2", x.shape[2], x.shape[3], x.shape[1])
+
+        #conv6
+        x = F.leaky_relu(self.conv6(x))
+        if self.verbose:
+            print("conv6", x.shape[2], x.shape[3], x.shape[1])
+
+        #conv7
+        x = F.leaky_relu(self.conv7(x))
+        if self.verbose:
+            print("conv7", x.shape[2], x.shape[3], x.shape[1])
+
+        #down3
+        x = self.down3(x)
+        if self.verbose:
+            print("down3", x.shape[2], x.shape[3], x.shape[1])
+
+        #conv8
+        x = F.leaky_relu(self.conv8(x))
+        if self.verbose:
+            print("conv8", x.shape[2], x.shape[3], x.shape[1])
+
+        #conv9
+        x = F.leaky_relu(self.conv9(x))
+        if self.verbose:
+            print("conv9", x.shape[2], x.shape[3], x.shape[1])
+
+        #down4
+        x = self.down4(x)
+        if self.verbose:
+            print("down4", x.shape[2], x.shape[3], x.shape[1])
+
+        #conv10
+        x = F.leaky_relu(self.conv10(x))
+        if self.verbose:
+            print("conv10", x.shape[2], x.shape[3], x.shape[1])
+
+
+        #conv11
+        x = F.leaky_relu(self.conv11(x))
+        if self.verbose:
+            print("conv11", x.shape[2], x.shape[3], x.shape[1])
+
+        #down5
+        x = self.down5(x)
+        if self.verbose:
+            print("down5", x.shape[2], x.shape[3], x.shape[1])
+
+        #conv12
+        x = F.leaky_relu(self.conv12(x))
+        if self.verbose:
+            print("conv12", x.shape[2], x.shape[3], x.shape[1])
+
+        #conv13
+        x = F.leaky_relu(self.conv13(x))
+        if self.verbose:
+            print(x.shape)
+            print("conv13", x.shape[2], x.shape[3], x.shape[1])
+
+        #down6
+        x = self.down6(x)
+        if self.verbose:
+            print("down6", x.shape[2], x.shape[3], x.shape[1])
+
+        #conv14
+        x = F.leaky_relu(self.conv14(x))
+        if self.verbose:
+            print("conv14", x.shape[2], x.shape[3], x.shape[1])
+
+        #conv15
+        x = F.leaky_relu(self.conv15(x))
+        if self.verbose:
+            print("conv15", x.shape[2], x.shape[3], x.shape[1])
+
+        x = x.view(2,-1)
+        x = F.softmax(self.fc1(x))
+        if self.verbose:
+            print("output", x.shape)
+
+        return x

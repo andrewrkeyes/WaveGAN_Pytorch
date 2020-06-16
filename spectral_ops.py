@@ -24,6 +24,7 @@ from __future__ import print_function
 
 import numpy as np
 import tensorflow.compat.v1 as tf
+import functools
 
 # mel spectrum constants.
 _MEL_BREAK_FREQUENCY_HERTZ = 700.0
@@ -270,3 +271,54 @@ def crop_or_pad(waves, length, channels):
   waves.set_shape([batch_size, length, channels])
   return waves
 
+
+def convert_to_spectrogram(waveforms, waveform_length, sample_rate, spectrogram_shape, overlap):
+
+    def normalize(inputs, mean, stddev):
+        return (inputs - mean) / stddev
+
+    time_steps, num_freq_bins = spectrogram_shape
+    frame_length = num_freq_bins * 2
+    frame_step = int((1.0 - overlap) * frame_length)
+    num_samples = frame_step * (time_steps - 1) + frame_length
+
+    # For Nsynth dataset, we are putting all padding in the front
+    # This causes edge effects in the tail
+    waveforms = tf.pad(waveforms, [[0, 0], [num_samples - waveform_length, 0]])
+
+    stfts = tf.signal.stft(
+        signals=waveforms,
+        frame_length=frame_length,
+        frame_step=frame_step,
+        window_fn=functools.partial(
+            tf.signal.hann_window,
+            periodic=True
+        )
+    )
+    # discard_dc
+    stfts = stfts[..., 1:]
+
+    magnitude_spectrograms = tf.abs(stfts)
+    phase_spectrograms = tf.angle(stfts)
+
+    # this matrix can be constant by graph optimization `Constant Folding`
+    # since there are no Tensor inputs
+    linear_to_mel_weight_matrix = tf.signal.linear_to_mel_weight_matrix(
+        num_mel_bins=num_freq_bins,
+        num_spectrogram_bins=num_freq_bins,
+        sample_rate=sample_rate,
+        lower_edge_hertz=0.0,
+        upper_edge_hertz=sample_rate / 2.0
+    )
+    mel_magnitude_spectrograms = tf.tensordot(magnitude_spectrograms, linear_to_mel_weight_matrix, axes=1)
+    mel_magnitude_spectrograms.set_shape(magnitude_spectrograms.shape[:-1].concatenate(linear_to_mel_weight_matrix.shape[-1:]))
+    mel_phase_spectrograms = tf.tensordot(phase_spectrograms, linear_to_mel_weight_matrix, axes=1)
+    mel_phase_spectrograms.set_shape(phase_spectrograms.shape[:-1].concatenate(linear_to_mel_weight_matrix.shape[-1:]))
+
+    log_mel_magnitude_spectrograms = tf.log(mel_magnitude_spectrograms + 1.0e-6)
+    mel_instantaneous_frequencies = instantaneous_frequency(mel_phase_spectrograms, time_axis=-2)
+
+    log_mel_magnitude_spectrograms = normalize(log_mel_magnitude_spectrograms, -3.76, 10.05)
+    mel_instantaneous_frequencies = normalize(mel_instantaneous_frequencies, 0.0, 1.0)
+
+    return log_mel_magnitude_spectrograms, mel_instantaneous_frequencies
